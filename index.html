@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Office OCR - Simple</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            padding: 40px;
+        }
+        
+        .step {
+            margin-bottom: 30px;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: slideIn 0.6s forwards;
+        }
+        
+        .step:nth-child(1) { animation-delay: 0.1s; }
+        .step:nth-child(2) { animation-delay: 0.2s; }
+        .step:nth-child(3) { animation-delay: 0.3s; }
+        .step:nth-child(4) { animation-delay: 0.4s; }
+        
+        @keyframes slideIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .step h3 {
+            color: #2c3e50;
+            font-size: 1.4em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .step-number {
+            background: #3498db;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+        }
+        
+        .api-setup {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        .camera-section {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .camera-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        video {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        canvas {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.3);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+        }
+        
+        .result-section {
+            background: #f1f2f6;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #2ecc71;
+        }
+        
+        .extracted-text {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 10px 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #fee;
+            border-left: 4px solid #e74c3c;
+            color: #c0392b;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .success {
+            background: #efd;
+            border-left: 4px solid #2ecc71;
+            color: #27ae60;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .captured-image {
+            max-width: 100%;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .image-preview {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .code-snippet {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .camera-controls {
+                gap: 15px;
+            }
+            
+            .btn {
+                padding: 12px 25px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📮 Simple OCR Demo</h1>
+            <p>Frontend Only - Direct API Call</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="step">
+                <h3><span class="step-number">1</span>Setup Instructions</h3>
+                <div class="api-setup">
+                    <p><strong>⚠️ Important:</strong> You need to add your Gemini API key to the JavaScript code.</p>
+                    <p><strong>Steps:</strong></p>
+                    <ol>
+                        <li>Get API key from <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a></li>
+                        <li>Right-click this page → "View Page Source" or "Inspect"</li>
+                        <li>Find this line in the JavaScript code:</li>
+                    </ol>
+                    <div class="code-snippet">const GEMINI_API_KEY = 'PUT_YOUR_API_KEY_HERE';</div>
+                    <p>4. Replace <code>PUT_YOUR_API_KEY_HERE</code> with your actual API key</p>
+                    <p>5. Save the file and reload the page</p>
+                </div>
+            </div>
+            
+            <div class="step">
+                <h3><span class="step-number">2</span>Camera Access</h3>
+                <div class="camera-section">
+                    <div class="camera-controls">
+                        <button id="startCamera" class="btn">📷 Start Camera</button>
+                        <video id="video" width="400" height="300" style="display: none;"></video>
+                        <canvas id="canvas"></canvas>
+                        <div id="cameraStatus"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step">
+                <h3><span class="step-number">3</span>Capture & Process</h3>
+                <div class="camera-controls">
+                    <button id="captureBtn" class="btn btn-success" disabled>📸 Capture Photo</button>
+                    <button id="processBtn" class="btn btn-danger" disabled>🔍 Extract Handwritten Text</button>
+                </div>
+                <div class="image-preview" id="imagePreview"></div>
+            </div>
+            
+            <div class="step">
+                <h3><span class="step-number">4</span>Extracted Text Results</h3>
+                <div class="result-section">
+                    <div id="loadingDiv" class="loading" style="display: none;">
+                        <div class="spinner"></div>
+                        <span>Processing with Gemini AI...</span>
+                    </div>
+                    <div id="results"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 🔑 PUT YOUR GEMINI API KEY HERE
+        const GEMINI_API_KEY = 'AIzaSyA3jnan7G5PWNJgoQz0pfg8jD-AyyH5y70';
+        
+        let video, canvas, ctx, capturedImageData;
+        
+        const elements = {
+            startCamera: document.getElementById('startCamera'),
+            video: document.getElementById('video'),
+            canvas: document.getElementById('canvas'),
+            captureBtn: document.getElementById('captureBtn'),
+            processBtn: document.getElementById('processBtn'),
+            cameraStatus: document.getElementById('cameraStatus'),
+            imagePreview: document.getElementById('imagePreview'),
+            loadingDiv: document.getElementById('loadingDiv'),
+            results: document.getElementById('results')
+        };
+        
+        // Initialize canvas
+        canvas = elements.canvas;
+        ctx = canvas.getContext('2d');
+        
+        // Check if API key is set
+        function checkApiKey() {
+            if (GEMINI_API_KEY === 'PUT_YOUR_API_KEY_HERE' || !GEMINI_API_KEY.trim()) {
+                elements.results.innerHTML = '<div class="error">❌ Please add your Gemini API key to the JavaScript code first!</div>';
+                return false;
+            }
+            return true;
+        }
+        
+        // Start camera
+        elements.startCamera.addEventListener('click', async function() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment', // Use back camera on mobile
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                });
+                
+                elements.video.srcObject = stream;
+                elements.video.style.display = 'block';
+                await elements.video.play();
+                
+                elements.cameraStatus.innerHTML = '<div class="success">✅ Camera started! Point at handwritten envelope/letter</div>';
+                elements.startCamera.textContent = '📹 Camera Active';
+                elements.startCamera.disabled = true;
+                
+                updateButtonStates();
+                
+            } catch (error) {
+                console.error('Camera error:', error);
+                elements.cameraStatus.innerHTML = '<div class="error">❌ Camera access denied. Please allow camera permissions and try again.</div>';
+            }
+        });
+        
+        // Capture photo
+        elements.captureBtn.addEventListener('click', function() {
+            if (!elements.video.videoWidth || !elements.video.videoHeight) {
+                elements.cameraStatus.innerHTML = '<div class="error">❌ Camera not ready yet. Please wait a moment.</div>';
+                return;
+            }
+            
+            // Set canvas size to match video
+            canvas.width = elements.video.videoWidth;
+            canvas.height = elements.video.videoHeight;
+            
+            // Draw current video frame to canvas
+            ctx.drawImage(elements.video, 0, 0);
+            
+            // Get image data as base64
+            capturedImageData = canvas.toDataURL('image/jpeg', 0.9);
+            
+            // Show preview
+            elements.imagePreview.innerHTML = `
+                <h4>📷 Captured Image:</h4>
+                <img src="${capturedImageData}" class="captured-image" alt="Captured handwritten text">
+                <p>✅ Image captured successfully! Click "Extract Text" to process.</p>
+            `;
+            
+            updateButtonStates();
+        });
+        
+        // Process image with Gemini API
+        elements.processBtn.addEventListener('click', async function() {
+            if (!capturedImageData) {
+                elements.results.innerHTML = '<div class="error">❌ Please capture an image first.</div>';
+                return;
+            }
+            
+            if (!checkApiKey()) {
+                return;
+            }
+            
+            elements.loadingDiv.style.display = 'flex';
+            elements.results.innerHTML = '';
+            elements.processBtn.disabled = true;
+            
+            try {
+                // Remove data URL prefix to get pure base64
+                const base64Data = capturedImageData.split(',')[1];
+                
+                // Enhanced prompt for better handwritten text extraction
+                const prompt = `Analyze this image carefully and extract ALL handwritten text. This is likely a postal envelope or letter with addresses. Please identify and extract:
+
+1. FROM/SENDER details:
+   - Name
+   - Complete address (street, area, city, state)
+   - Phone number (if visible)
+   - PIN code/Postal code
+
+2. TO/RECIPIENT details:
+   - Name
+   - Complete address (street, area, city, state) 
+   - Phone number (if visible)
+   - PIN code/Postal code
+
+3. Any other handwritten text, numbers, or important information
+
+Format your response clearly as:
+
+**FROM (Sender):**
+Name: [extracted name or "Not visible"]
+Address: [complete address or "Not visible"]
+Phone: [phone number or "Not visible"]  
+PIN Code: [PIN code or "Not visible"]
+
+**TO (Recipient):**
+Name: [extracted name or "Not visible"]
+Address: [complete address or "Not visible"]
+Phone: [phone number or "Not visible"]
+PIN Code: [PIN code or "Not visible"]
+
+**Additional Text:**
+[Any other handwritten content found]
+
+Focus on accuracy - only extract text you can read clearly. If handwriting is unclear, mention "Unclear handwriting" for that field.`;
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [
+                                { text: prompt },
+                                {
+                                    inline_data: {
+                                        mime_type: "image/jpeg",
+                                        data: base64Data
+                                    }
+                                }
+                            ]
+                        }],
+                        generationConfig: {
+                            temperature: 0.1, // Lower temperature for more accurate text extraction
+                            maxOutputTokens: 1000
+                        }
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`API Error ${response.status}: ${errorData.error?.message || 'Unknown error'}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                    const extractedText = data.candidates[0].content.parts[0].text;
+                    
+                    elements.results.innerHTML = `
+                        <h4>🎯 Extracted Handwritten Text:</h4>
+                        <div class="extracted-text">${extractedText}</div>
+                        <div class="success">
+                            ✅ Text extraction completed! 
+                            <br><strong>Processing time:</strong> ~2-3 seconds
+                            <br><strong>Model used:</strong> Gemini 1.5 Flash
+                        </div>
+                        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                            <h5>🚀 Next Steps for Complete System:</h5>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li>Parse extracted data into structured format</li>
+                                <li>Calculate distance between FROM and TO PIN codes</li>
+                                <li>Calculate postal charges based on weight + distance</li>
+                                <li>Generate barcode with shipping details</li>
+                                <li>Auto-fill postal website forms</li>
+                                <li>Send SMS bill to customer</li>
+                            </ul>
+                        </div>
+                    `;
+                } else {
+                    throw new Error('No text content received from Gemini API');
+                }
+                
+            } catch (error) {
+                console.error('Processing Error:', error);
+                elements.results.innerHTML = `
+                    <div class="error">
+                        ❌ Error: ${error.message}
+                        <br><br>
+                        <strong>Common issues:</strong>
+                        <ul>
+                            <li>API key not set correctly</li>
+                            <li>API key quota exceeded</li>
+                            <li>Network connectivity issues</li>
+                            <li>Image too large (try capturing closer)</li>
+                        </ul>
+                    </div>
+                `;
+            } finally {
+                elements.loadingDiv.style.display = 'none';
+                elements.processBtn.disabled = false;
+                updateButtonStates();
+            }
+        });
+        
+        function updateButtonStates() {
+            const cameraActive = elements.video.srcObject !== null;
+            const hasImage = !!capturedImageData;
+            
+            elements.captureBtn.disabled = !cameraActive;
+            elements.processBtn.disabled = !hasImage;
+        }
+        
+        // Initialize
+        updateButtonStates();
+        
+        // Show API key status on load
+        setTimeout(() => {
+            if (!checkApiKey()) {
+                elements.cameraStatus.innerHTML = '<div class="error">⚠️ Please add your API key to the code first!</div>';
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
